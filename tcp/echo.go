@@ -70,4 +70,6 @@ func (handler *EchoHandler) Close() error {
 		client.Conn.Close()
 		return true
 	})
+
+	return nil
 }

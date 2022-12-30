@@ -3,6 +3,7 @@ package tcp
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"redis-in-go/lib/logger"
@@ -47,9 +48,10 @@ func (handler *EchoHandler) Handle(ctx context.Context, conn net.Conn) {
 
 	for {
 		msg, err := reader.ReadString('\n')
+
 		if err != nil {
 			if err == io.EOF {
-				logger.Info("Connection close")
+				logger.Info(fmt.Sprintf("Connection close with msg: %s\n", err.Error()))
 				handler.activeConn.Delete(client)
 			} else {
 				logger.Warn(err)
@@ -57,6 +59,8 @@ func (handler *EchoHandler) Handle(ctx context.Context, conn net.Conn) {
 
 			return
 		}
+
+		logger.Info(fmt.Sprintf("received mssage: %s\n", msg))
 
 		client.Waiting.Add(1)
 		b := []byte(msg)

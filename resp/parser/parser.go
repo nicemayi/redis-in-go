@@ -5,7 +5,9 @@ import (
 	"errors"
 	"io"
 	"redis-in-go/interface/resp"
+	"redis-in-go/lib/logger"
 	"redis-in-go/resp/reply"
+	"runtime/debug"
 	"strconv"
 	"strings"
 )
@@ -34,8 +36,100 @@ func ParseStream(reader io.Reader) <-chan *Payload {
 }
 
 // core parser
-func parse0(read io.Reader, ch chan<- *Payload) {
+func parse0(reader io.Reader, ch chan<- *Payload) {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Error(string(debug.Stack()))
+		}
+	}()
 
+	bufReader := bufio.NewReader(reader)
+	var state readState
+	var err error
+	var msg []byte
+	for true {
+		var ioErr bool
+		msg, ioErr, err = readLine(bufReader, &state)
+		if err != nil {
+			if ioErr {
+				ch <- &Payload{
+					Err: err,
+				}
+				close(ch)
+				return
+			}
+			ch <- &Payload{
+				Err: err,
+			}
+			state = readState{}
+			continue
+		}
+		if !state.readingMultiLine {
+			if msg[0] == '*' {
+				err := parseMultiHeader(msg, &state)
+				if err != nil {
+					ch <- &Payload{
+						Err: errors.New("protocal error: " + string(msg)),
+					}
+					state = readState{}
+					continue
+				}
+				if state.expectedArgsCount == 0 {
+					ch <- &Payload{
+						Data: &reply.EmptyMultiBulkReply{},
+					}
+					state = readState{}
+					continue
+				}
+			} else if msg[0] == '$' {
+				err := parseBulkHeader(msg, &state)
+				if err != nil {
+					ch <- &Payload{
+						Err: errors.New("protocal error: " + string(msg)),
+					}
+					state = readState{}
+					continue
+				}
+				if state.expectedArgsCount == 0 {
+					ch <- &Payload{
+						Data: &reply.NullBulkReply{},
+					}
+					state = readState{}
+					continue
+				}
+			} else {
+				result, err := parseSingleLineReply(msg)
+				ch <- &Payload{
+					Data: result,
+					Err:  err,
+				}
+				state = readState{}
+				continue
+			}
+		} else {
+			err := readBody(msg, &state)
+			if err != nil {
+				ch <- &Payload{
+					Err: errors.New("protocal error: " + string(msg)),
+				}
+				state = readState{}
+				continue
+			}
+			if state.finished() {
+				var result resp.Reply
+				if state.msgType == '*' {
+					result = reply.MakeMultiBulkReply(state.args)
+				} else if state.msgType == '$' {
+					result = reply.MakeBulkReply(state.args[0])
+				}
+				ch <- &Payload{
+					Data: result,
+					Err:  err,
+				}
+				state = readState{}
+			}
+		}
+	}
 }
 
 func readLine(bufReader *bufio.Reader, state *readState) ([]byte, bool, error) {

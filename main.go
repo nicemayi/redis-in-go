@@ -5,6 +5,7 @@ import (
 	"os"
 	"redis-in-go/config"
 	"redis-in-go/lib/logger"
+	"redis-in-go/resp/handler"
 	"redis-in-go/tcp"
 )
 
@@ -38,7 +39,7 @@ func main() {
 		&tcp.Config{
 			Address: fmt.Sprintf("%s:%d", config.Properties.Bind, config.Properties.Port),
 		},
-		tcp.MakeHandler(),
+		handler.MakeHandler(),
 	)
 
 	if err != nil {

@@ -100,6 +100,7 @@ type RespHandler struct {
 
 func MakeHandler() *RespHandler {
 	var db databaseface.Database
+	// db = database.NewEchoDatabase()
 	db = database.NewEchoDatabase()
 	return &RespHandler{
 		db: db,

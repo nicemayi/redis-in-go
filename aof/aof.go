@@ -1,11 +1,14 @@
 package aof
 
 import (
+	"io"
 	"os"
 	"redis-in-go/config"
 	"redis-in-go/interface/database"
 	"redis-in-go/lib/logger"
 	"redis-in-go/lib/utils"
+	"redis-in-go/resp/connection"
+	"redis-in-go/resp/parser"
 	"redis-in-go/resp/reply"
 	"strconv"
 )
@@ -85,5 +88,35 @@ func (handler *AofHandler) handleAof() {
 
 // LoadAof
 func (handler *AofHandler) LoadAof() {
+	file, err := os.Open(handler.aofFilename)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+	defer file.Close()
+	ch := parser.ParseStream(file)
+	fakeConn := &connection.Connection{}
 
+	for p := range ch {
+		if p.Err != nil {
+			if p.Err == io.EOF {
+				break
+			}
+			logger.Error(p.Err)
+			continue
+		}
+		if p.Data == nil {
+			logger.Error("empty payload")
+			continue
+		}
+		r, ok := p.Data.(*reply.MultiBulkReply)
+		if !ok {
+			logger.Error("exec err")
+			continue
+		}
+		rep := handler.database.Exec(fakeConn, r.Args)
+		if reply.IsErrReply(rep) {
+			logger.Error("exec err", rep.ToBytes())
+		}
+	}
 }

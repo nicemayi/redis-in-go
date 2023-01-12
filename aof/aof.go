@@ -3,7 +3,7 @@ package aof
 import (
 	"os"
 	"redis-in-go/config"
-	"redis-in-go/database"
+	"redis-in-go/interface/database"
 	"redis-in-go/lib/logger"
 	"redis-in-go/lib/utils"
 	"redis-in-go/resp/reply"

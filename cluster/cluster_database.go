@@ -45,6 +45,10 @@ func MakeClusterDatabase() *ClusterDatabase {
 	return cluster
 }
 
+type CmdFunc func(cluster *ClusterDatabase, c resp.Connection, cmdArgs [][]byte) resp.Reply
+
+var router = makeRouter()
+
 func (c *ClusterDatabase) Exec(client resp.Connection, args [][]byte) resp.Reply {
 	panic("implement me")
 }

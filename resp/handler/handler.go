@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"net"
+	"redis-in-go/cluster"
+	"redis-in-go/config"
 	"redis-in-go/database"
 	databaseface "redis-in-go/interface/database"
 	"redis-in-go/interface/resp"
@@ -101,7 +103,12 @@ type RespHandler struct {
 func MakeHandler() *RespHandler {
 	var db databaseface.Database
 	// db = database.NewEchoDatabase()
-	db = database.NewEchoDatabase()
+	// db = database.NewStandaloneDatabase()
+	if config.Properties.Self != "" && len(config.Properties.Peers) > 0 {
+		db = cluster.MakeClusterDatabase()
+	} else {
+		db = database.NewStandaloneDatabase()
+	}
 	return &RespHandler{
 		db: db,
 	}

@@ -39,7 +39,7 @@ func MakeClusterDatabase() *ClusterDatabase {
 
 	ctx := context.Background()
 	for _, peer := range config.Properties.Peers {
-		pool.NewObjectPoolWithDefaultConfig(ctx, &connectionFactory{
+		cluster.peerconnection[peer] = pool.NewObjectPoolWithDefaultConfig(ctx, &connectionFactory{
 			Peer: peer,
 		})
 	}
